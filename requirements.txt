@@ -1,31 +1,12 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from app.api.routes import router
-from app.config import settings
-
-app = FastAPI(title=settings.APP_NAME, version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(router)
-
-
-@app.get("/")
-async def root():
-    return {
-        "app": settings.APP_NAME,
-        "status": "ok",
-        "environment": settings.APP_ENV,
-    }
-
-
-@app.get("/health")
-async def healthcheck():
-    return {"status": "healthy", "service": settings.APP_NAME}
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+celery==5.4.0
+redis==5.0.1
+APScheduler==3.10.4
+httpx==0.27.2
+python-dotenv==1.0.1
+openai==1.52.2
+anthropic==0.34.2
+PyGithub==2.4.0
+numpy==2.1.3
