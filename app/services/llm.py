@@ -25,7 +25,9 @@ class LLMService:
                     ],
                     temperature=0.7,
                 )
-                return completion.choices[0].message.content or "No response generated."
+                content = completion.choices[0].message.content
+                if content:
+                    return content
             except Exception:
                 pass
 
@@ -33,14 +35,18 @@ class LLMService:
             try:
                 import anthropic
 
-                client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-                response = await anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY).messages.create(
+                client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+                response = await client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=1024,
                     messages=[{"role": "user", "content": prompt}],
                     system=system_prompt or "You are a helpful AI assistant.",
                 )
-                return response.content[0].text
+                text_blocks = getattr(response, "content", []) or []
+                if text_blocks:
+                    text = "".join(getattr(block, "text", "") for block in text_blocks if getattr(block, "type", None) == "text")
+                    if text:
+                        return text
             except Exception:
                 pass
 
