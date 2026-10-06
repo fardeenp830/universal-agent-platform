@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
 
 from app.core.orchestrator import orchestrator
 from app.core.schemas import OrchestrationRequest, ScheduledTask, TaskStatus
 from app.services.memory import MemoryService
+from app.services.task_store import task_store
 from app.workers.tasks import scheduled_agent_job
 
 router = APIRouter(prefix="/api", tags=["agent-platform"])
@@ -36,6 +37,16 @@ async def orchestrate(request: OrchestrationRequest) -> Dict[str, Any]:
     try:
         results = await orchestrator.route_task(request)
         memory_service.add(request.task, metadata={"user_id": request.user_id or "anonymous"})
+
+        for result in results:
+            task_store.add(
+                task=request.task,
+                agent=result.agent,
+                status=result.status,
+                result=result.result,
+                metadata={"context": request.context, "user_id": request.user_id or "anonymous"},
+            )
+
         return {
             "task": request.task,
             "results": [result.model_dump() for result in results],
@@ -77,6 +88,19 @@ async def add_memory(payload: Dict[str, str]) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Content is required")
     record = memory_service.add(content, metadata={"source": "api"})
     return {"status": "saved", "record": {"id": record.id, "content": record.content, "metadata": record.metadata}}
+
+
+@router.get("/tasks")
+async def list_tasks() -> Dict[str, Any]:
+    return {"tasks": task_store.list()}
+
+
+@router.get("/tasks/{task_id}")
+async def get_task(task_id: str) -> Dict[str, Any]:
+    task = task_store.get_by_id(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"task": task}
 
 
 @router.get("/health")
