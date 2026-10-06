@@ -1,47 +1,31 @@
-from __future__ import annotations
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from typing import Any, Dict, List
+from app.api.routes import router
+from app.config import settings
 
-from fastapi import APIRouter, HTTPException
+app = FastAPI(title=settings.APP_NAME, version="0.1.0")
 
-from app.core.orchestrator import orchestrator
-from app.core.schemas import OrchestrationRequest, ScheduledTask, TaskStatus
-from app.workers.tasks import scheduled_agent_job
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-router = APIRouter(prefix="/api", tags=["agent-platform"])
-
-
-@router.get("/agents")
-async def list_agents() -> Dict[str, Any]:
-    return {"agents": ["coding_agent", "research_agent", "github_agent", "chat_agent", "finance_agent"]}
-
-
-@router.post("/orchestrate")
-async def orchestrate(request: OrchestrationRequest) -> Dict[str, Any]:
-    try:
-        results = await orchestrator.route_task(request)
-        return {
-            "task": request.task,
-            "results": [result.model_dump() for result in results],
-            "status": "success",
-        }
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+app.include_router(router)
 
 
-@router.post("/schedule")
-async def schedule_task(task: ScheduledTask) -> TaskStatus:
-    try:
-        scheduled_agent_job.apply_async(args=[task.payload.get("task", task.description), task.task_type])
-        return TaskStatus(
-            task_id=f"scheduled-{task.name}",
-            status="queued",
-            message=f"Task '{task.name}' scheduled successfully.",
-        )
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+@app.get("/")
+async def root():
+    return {
+        "app": settings.APP_NAME,
+        "status": "ok",
+        "environment": settings.APP_ENV,
+    }
 
 
-@router.get("/health")
-async def health() -> Dict[str, str]:
-    return {"status": "ok"}
+@app.get("/health")
+async def healthcheck():
+    return {"status": "healthy", "service": settings.APP_NAME}

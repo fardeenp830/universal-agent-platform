@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 APP_ENV = os.getenv("APP_ENV", "development")

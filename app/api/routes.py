@@ -2,33 +2,38 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from app.agents.registry import get_default_agents
-from app.core.schemas import AgentResult, OrchestrationRequest
+from app.agents.specialized_agents import (
+    BiotechAgent,
+    ChatAgent,
+    CodingAgent,
+    DevOpsAgent,
+    FilmAgent,
+    FinanceAgent,
+    GitHubAgent,
+    MathAgent,
+    QuantumAgent,
+    ResearchAgent,
+    RoboticsAgent,
+    ScienceAgent,
+)
 
 
-class AgentOrchestrator:
-    def __init__(self, agents: Dict[str, object] | None = None) -> None:
-        self.agents = agents or get_default_agents()
-
-    async def route_task(self, request: OrchestrationRequest) -> List[AgentResult]:
-        task_text = request.task.lower()
-
-        if any(keyword in task_text for keyword in ["debug", "bug", "error", "exception", "traceback", "fix", "code"]):
-            selected = [self.agents["coding_agent"]]
-        elif any(keyword in task_text for keyword in ["research", "analyze", "study", "compare", "report", "trend"]):
-            selected = [self.agents["research_agent"]]
-        elif any(keyword in task_text for keyword in ["github", "pull request", "repo", "issue", "review", "commit", "merge"]):
-            selected = [self.agents["github_agent"]]
-        elif any(keyword in task_text for keyword in ["finance", "market", "investment", "budget", "economy"]):
-            selected = [self.agents["finance_agent"]]
-        else:
-            selected = [self.agents["chat_agent"]]
-
-        results: List[AgentResult] = []
-        for agent in selected:
-            result = await agent.run(request.task, request.context)
-            results.append(result)
-        return results
+def get_default_agents() -> Dict[str, object]:
+    return {
+        "coding_agent": CodingAgent(),
+        "research_agent": ResearchAgent(),
+        "github_agent": GitHubAgent(),
+        "chat_agent": ChatAgent(),
+        "finance_agent": FinanceAgent(),
+        "math_agent": MathAgent(),
+        "science_agent": ScienceAgent(),
+        "robotics_agent": RoboticsAgent(),
+        "quantum_agent": QuantumAgent(),
+        "biotech_agent": BiotechAgent(),
+        "film_agent": FilmAgent(),
+        "devops_agent": DevOpsAgent(),
+    }
 
 
-orchestrator = AgentOrchestrator()
+def get_agent_names() -> List[str]:
+    return list(get_default_agents().keys())

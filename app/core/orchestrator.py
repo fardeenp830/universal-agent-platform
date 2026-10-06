@@ -1,34 +1,48 @@
 from __future__ import annotations
 
-import asyncio
-from celery import Celery
+from typing import Any, Dict, List
 
 from app.agents.registry import get_default_agents
-from app.config import settings
-
-celery_app = Celery(
-    "agent_platform",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
-)
-
-celery_app.conf.task_serializer = "json"
-celery_app.conf.result_serializer = "json"
-celery_app.conf.accept_content = ["json"]
+from app.core.schemas import AgentResult, OrchestrationRequest
 
 
-@celery_app.task(name="run_agent_task")
-def run_agent_task(task: str, agent_name: str = "chat_agent"):
-    agents = get_default_agents()
-    agent = agents.get(agent_name, agents["chat_agent"])
+class AgentOrchestrator:
+    def __init__(self, agents: Dict[str, object] | None = None) -> None:
+        self.agents = agents or get_default_agents()
 
-    async def _execute() -> str:
-        result = await agent.run(task)
-        return result.result
+    async def route_task(self, request: OrchestrationRequest) -> List[AgentResult]:
+        task_text = request.task.lower()
 
-    return asyncio.run(_execute())
+        if any(keyword in task_text for keyword in ["debug", "bug", "error", "exception", "traceback", "fix", "code", "python", "javascript", "java", "typescript", "golang"]):
+            selected = [self.agents["coding_agent"]]
+        elif any(keyword in task_text for keyword in ["research", "analyze", "study", "compare", "report", "paper", "trend", "science", "math", "quantum"]):
+            selected = [self.agents["research_agent"]]
+        elif any(keyword in task_text for keyword in ["github", "pull request", "repo", "issue", "review", "commit", "merge", "pr"]):
+            selected = [self.agents["github_agent"]]
+        elif any(keyword in task_text for keyword in ["finance", "market", "investment", "budget", "economy", "startup", "stock", "crypto"]):
+            selected = [self.agents["finance_agent"]]
+        elif any(keyword in task_text for keyword in ["math", "algebra", "geometry", "probability", "calculus", "statistics"]):
+            selected = [self.agents["math_agent"]]
+        elif any(keyword in task_text for keyword in ["science", "biology", "chemistry", "physics", "astronomy", "space"]):
+            selected = [self.agents["science_agent"]]
+        elif any(keyword in task_text for keyword in ["robot", "robotics", "automaton", "control", "autonomy", "drone"]):
+            selected = [self.agents["robotics_agent"]]
+        elif any(keyword in task_text for keyword in ["quantum", "superposition", "schrodinger", "entanglement", "qubit"]):
+            selected = [self.agents["quantum_agent"]]
+        elif any(keyword in task_text for keyword in ["biotech", "genome", "gene", "medical", "bioinformatics", "cell"]):
+            selected = [self.agents["biotech_agent"]]
+        elif any(keyword in task_text for keyword in ["film", "video", "cinema", "storyboard", "script", "editing", "camera"]):
+            selected = [self.agents["film_agent"]]
+        elif any(keyword in task_text for keyword in ["deploy", "docker", "kubernetes", "cloud", "ci/cd", "infra", "devops", "pipeline"]):
+            selected = [self.agents["devops_agent"]]
+        else:
+            selected = [self.agents["chat_agent"]]
+
+        results: List[AgentResult] = []
+        for agent in selected:
+            result = await agent.run(request.task, request.context)
+            results.append(result)
+        return results
 
 
-@celery_app.task(name="scheduled_agent_job")
-def scheduled_agent_job(task: str, agent_name: str = "chat_agent") -> str:
-    return run_agent_task(task=task, agent_name=agent_name)
+orchestrator = AgentOrchestrator()

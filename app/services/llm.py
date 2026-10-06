@@ -1,22 +1,56 @@
 from __future__ import annotations
 
-from app.core.agent_base import BaseAgent
-from app.core.schemas import AgentResult
+from typing import Any, Dict, Optional
+
+from app.config import settings
 
 
-class FinanceAgent(BaseAgent):
-    name = "finance_agent"
-    role = "finance and strategy"
-    capabilities = ["market analysis", "risk assessment", "financial planning", "strategy"]
+class LLMService:
+    def __init__(self) -> None:
+        self.model = settings.DEFAULT_MODEL
 
-    async def run(self, task: str, context=None) -> AgentResult:
-        system_prompt = (
-            "You are a finance and strategy expert. Provide risk-aware, practical financial and business analysis."
-        )
-        response = await self.llm_service.generate(task, system_prompt=system_prompt)
-        return AgentResult(
-            agent=self.name,
-            status="completed",
-            result=response,
-            metadata={"type": "finance"},
+    async def generate(self, prompt: str, system_prompt: str | None = None, model: str | None = None) -> str:
+        model_name = model or self.model
+
+        if settings.OPENAI_API_KEY:
+            try:
+                from openai import AsyncOpenAI
+
+                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                completion = await client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt or "You are a helpful AI assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.7,
+                )
+                return completion.choices[0].message.content or "No response generated."
+            except Exception:
+                pass
+
+        if settings.ANTHROPIC_API_KEY:
+            try:
+                import anthropic
+
+                client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+                response = await anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY).messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=1024,
+                    messages=[{"role": "user", "content": prompt}],
+                    system=system_prompt or "You are a helpful AI assistant.",
+                )
+                return response.content[0].text
+            except Exception:
+                pass
+
+        return self._fallback_response(prompt, system_prompt)
+
+    def _fallback_response(self, prompt: str, system_prompt: str | None = None) -> str:
+        system_text = system_prompt or "You are a helpful AI assistant."
+        return (
+            f"LLM fallback response.\n\n"
+            f"System: {system_text}\n\n"
+            f"User request: {prompt}\n\n"
+            "This project is running in offline fallback mode. Add API keys in .env to enable live LLM responses."
         )
