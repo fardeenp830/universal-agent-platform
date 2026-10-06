@@ -43,10 +43,13 @@ class LLMService:
                     system=system_prompt or "You are a helpful AI assistant.",
                 )
                 text_blocks = getattr(response, "content", []) or []
-                if text_blocks:
-                    text = "".join(getattr(block, "text", "") for block in text_blocks if getattr(block, "type", None) == "text")
-                    if text:
-                        return text
+                text_parts = []
+                for block in text_blocks:
+                    if getattr(block, "type", None) == "text":
+                        text_parts.append(getattr(block, "text", ""))
+                text = "".join(text_parts)
+                if text:
+                    return text
             except Exception:
                 pass
 

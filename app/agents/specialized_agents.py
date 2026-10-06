@@ -1,58 +1,130 @@
 from __future__ import annotations
 
-import re
 from typing import Any, Dict, List, Optional
 
-from app.services.memory import MemoryService
+from app.core.agent_base import BaseAgent
+from app.core.schemas import AgentResult
 
 
-class RAGService:
-    def __init__(self, memory_service: Optional[MemoryService] = None) -> None:
-        self.memory_service = memory_service or MemoryService()
-        self.knowledge_base = [
-            "General knowledge foundation: AI agents combine reasoning, tool use, memory, and execution loops to perform tasks reliably.",
-            "Software engineering best practices include clear interfaces, tests, logging, observability, security checks, and incremental deployment.",
-            "Research workflows benefit from structured questions, source evaluation, synthesis, and explicit assumptions.",
-            "DevOps patterns rely on automation, infrastructure as code, environment isolation, monitoring, and rollback strategies.",
-            "Finance and operations need risk analysis, scenario planning, and measurement of uncertainty before committing resources.",
-            "Robotics combines sensors, controls, planning, perception, and safety constraints for reliable autonomous behavior.",
-            "Quantum computing studies superposition, entanglement, interference, and noise management in complex systems.",
-            "Biotechnology and life sciences depend on precise experimentation, model validation, and regulated workflows.",
-        ]
+class CodingAgent(BaseAgent):
+    name = "coding_agent"
+    role = "software engineering"
+    capabilities = ["debugging", "code generation", "refactoring", "testing"]
 
-    def retrieve(self, query: str, limit: int = 3) -> List[str]:
-        query_tokens = self._normalize(query)
-        scored: List[tuple[float, str]] = []
-        for doc in self.knowledge_base:
-            score = self._document_score(query_tokens, doc)
-            if score > 0:
-                scored.append((score, doc))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [doc for _, doc in scored[:limit]]
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        prompt = f"You are a senior software engineer. Fix or explain this technical task with strong engineering reasoning. Task: {task}"
+        response = await self.llm_service.generate(prompt, system_prompt="You are a senior software engineer and technical architect.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "coding", "context": self._safe_context(context)})
 
-    def add_document(self, document: str) -> None:
-        if document.strip():
-            self.knowledge_base.append(document.strip())
 
-    def _normalize(self, text: str) -> List[str]:
-        return re.sub(r"[^a-z0-9\s]", " ", text.lower()).split()
+class ResearchAgent(BaseAgent):
+    name = "research_agent"
+    role = "research and analysis"
+    capabilities = ["research", "analysis", "synthesis", "reporting"]
 
-    def _document_score(self, query_tokens: List[str], document: str) -> float:
-        doc_tokens = self._normalize(document)
-        if not query_tokens:
-            return 0.0
-        overlap = sum(1 for token in query_tokens if token in doc_tokens)
-        if overlap == 0:
-            return 0.0
-        return overlap / max(len(query_tokens), 1)
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        prompt = f"Research and analyze the following topic deeply and clearly: {task}"
+        response = await self.llm_service.generate(prompt, system_prompt="You are a research analyst and scientific synthesizer.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "research", "context": self._safe_context(context)})
 
-    def enrich_prompt(self, task: str, context: Optional[Dict[str, Any]] = None) -> str:
-        knowledge = self.retrieve(task, limit=3)
-        memory = self.memory_service.search(task, limit=3) if self.memory_service else []
-        context_parts = []
-        if knowledge:
-            context_parts.append("Relevant knowledge:\n" + "\n".join(f"- {item}" for item in knowledge))
-        if memory:
-            context_parts.append("Relevant memory:\n" + "\n".join(f"- {item['content']}" for item in memory))
-        final_context = "\n\n".join(context_parts)
-        return f"{task}\n\n{final_context}" if final_context else task
+
+class GitHubAgent(BaseAgent):
+    name = "github_agent"
+    role = "GitHub automation"
+    capabilities = ["repo triage", "PR review", "issue response", "release planning"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        prompt = f"Provide GitHub-focused engineering guidance for this task: {task}"
+        response = await self.llm_service.generate(prompt, system_prompt="You are a GitHub ops specialist for software teams.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "github", "context": self._safe_context(context)})
+
+
+class ChatAgent(BaseAgent):
+    name = "chat_agent"
+    role = "general-purpose assistant"
+    capabilities = ["conversation", "brainstorming", "planning", "question answering"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a helpful, knowledgeable general assistant.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "chat", "context": self._safe_context(context)})
+
+
+class FinanceAgent(BaseAgent):
+    name = "finance_agent"
+    role = "finance and strategy"
+    capabilities = ["market analysis", "risk assessment", "financial plan", "business insight"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        prompt = f"Provide financial and strategic analysis for this task: {task}"
+        response = await self.llm_service.generate(prompt, system_prompt="You are a finance and strategy expert.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "finance", "context": self._safe_context(context)})
+
+
+class MathAgent(BaseAgent):
+    name = "math_agent"
+    role = "mathematics"
+    capabilities = ["algebra", "calculus", "statistics", "proofs"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a mathematics expert with clear reasoning and step-by-step derivations.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "math", "context": self._safe_context(context)})
+
+
+class ScienceAgent(BaseAgent):
+    name = "science_agent"
+    role = "science"
+    capabilities = ["physics", "chemistry", "biology", "astronomy"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a science expert covering physics, chemistry, biology, and astronomy.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "science", "context": self._safe_context(context)})
+
+
+class RoboticsAgent(BaseAgent):
+    name = "robotics_agent"
+    role = "robotics and autonomy"
+    capabilities = ["control systems", "perception", "planning", "autonomy"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a robotics expert focused on autonomy, control, sensing, and safety.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "robotics", "context": self._safe_context(context)})
+
+
+class QuantumAgent(BaseAgent):
+    name = "quantum_agent"
+    role = "quantum science"
+    capabilities = ["quantum computing", "quantum mechanics", "entanglement", "algorithms"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a quantum scientist with expertise in quantum mechanics and computing.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "quantum", "context": self._safe_context(context)})
+
+
+class BiotechAgent(BaseAgent):
+    name = "biotech_agent"
+    role = "biotechnology and life sciences"
+    capabilities = ["genomics", "bioinformatics", "experimental design", "drug discovery"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a biotechnology and life sciences specialist with strong scientific rigor.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "biotech", "context": self._safe_context(context)})
+
+
+class FilmAgent(BaseAgent):
+    name = "film_agent"
+    role = "filmmaking and storytelling"
+    capabilities = ["screenwriting", "story structure", "visual direction", "editing"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a filmmaker and creative storyteller with expertise in script and direction.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "film", "context": self._safe_context(context)})
+
+
+class DevOpsAgent(BaseAgent):
+    name = "devops_agent"
+    role = "infrastructure and deployment"
+    capabilities = ["deployment", "cloud", "automation", "observability"]
+
+    async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
+        response = await self.llm_service.generate(task, system_prompt="You are a DevOps engineer focused on deployment, automation, and infrastructure reliability.")
+        return AgentResult(agent=self.name, status="completed", result=response, metadata={"type": "devops", "context": self._safe_context(context)})

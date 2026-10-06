@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 from app.core.schemas import AgentResult
 from app.services.llm import LLMService
 
 
-class BaseAgent(ABC):
+class BaseAgent:
     name: str = "base_agent"
     role: str = "general"
     capabilities: list[str] = []
@@ -15,7 +14,6 @@ class BaseAgent(ABC):
     def __init__(self, llm_service: Optional[LLMService] = None):
         self.llm_service = llm_service or LLMService()
 
-    @abstractmethod
     async def run(self, task: str, context: Optional[Dict[str, Any]] = None) -> AgentResult:
         raise NotImplementedError
 

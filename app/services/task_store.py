@@ -52,18 +52,15 @@ class TaskStore:
         with self.store_path.open("w", encoding="utf-8") as fh:
             for record in self._records:
                 fh.write(
-                    json.dumps(
-                        {
-                            "id": record.id,
-                            "task": record.task,
-                            "agent": record.agent,
-                            "status": record.status,
-                            "result": record.result,
-                            "created_at": record.created_at,
-                            "metadata": record.metadata,
-                        }
-                    )
-                    + "\n"
+                    json.dumps({
+                        "id": record.id,
+                        "task": record.task,
+                        "agent": record.agent,
+                        "status": record.status,
+                        "result": record.result,
+                        "created_at": record.created_at,
+                        "metadata": record.metadata,
+                    }) + "\n"
                 )
 
     def _now_iso(self) -> str:
